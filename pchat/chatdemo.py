@@ -28,8 +28,6 @@ class Application(tornado.web.Application):
             xsrf_cookies=False,
         )
 
-        #понятия не имею, что тут происходит, но "работает не трогай"
-        #объяснение по ссылке: fkn.ktu10.com/?q=node/4087
         super(Application, self).__init__(handlers, **settings)
 
 
