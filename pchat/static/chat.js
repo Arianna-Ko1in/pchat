@@ -1,27 +1,46 @@
-$(document).ready(function() {
-    $("#messageform").on("submit", function() {
-        newMessage($(this));
-        return false;
-    });
+function send() {
+    newMessage($("#messageform"))
+    return false;
+}
 
-    $("#messageform").on("keypress", function(e) {
-	if (key==13) {
-          newMessage($(this));
-          return false;
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelector("input").onkeypress = function () {
+        if (event.keyCode == 13) {
+            return send();
         }
-    });
-
-  //  $("#message").select();
+    }
     updater.start();
 });
 
-function newMessage(form) {
-    var message = form.formToDict();
-    updater.socket.send(JSON.stringify(message));
-    form.find("input[type=text]").val("").select();
+function clearMessage() {
+    qs = document.querySelector("#message");
+    qs.value = "";
+    qs.focus();
 }
 
-jQuery.fn.formToDict = function() {
+function newMessage(form) {
+    var message = {};
+    message.body = document.querySelector("#message").value;
+    message.receiver = null;
+    if (document.replyto !== undefined && document.replyto!=null) {
+        message.body = ' > [' + document.querySelector("#" + document.replyto).innerText + '] ' + message.body;
+        message.receiver = document.replyto;
+    }
+    reply.style.display = 'none';
+    updater.socket.send(JSON.stringify(message));
+    document.replyto = null;
+    clearMessage();
+}
+
+function sendTo(messageId) {
+    reply = document.querySelector("#reply")
+    reply.style.display = 'block';
+    reply.innerText = 'In reply to: ' + document.querySelector("#" + messageId).innerText;
+    document.replyto = messageId;
+    clearMessage();
+}
+
+jQuery.fn.formToDict = function () {
     var fields = this.serializeArray();
     var json = {}
     for (var i = 0; i < fields.length; i++) {
@@ -34,16 +53,16 @@ jQuery.fn.formToDict = function() {
 var updater = {
     socket: null,
 
-    start: function() {
+    start: function () {
         var url = "ws://" + location.host + "/chatsocket";
-	console.log(url);
+        console.log(url);
         updater.socket = new WebSocket(url);
-        updater.socket.onmessage = function(event) {
+        updater.socket.onmessage = function (event) {
             updater.showMessage(JSON.parse(event.data));
         }
     },
 
-    showMessage: function(message) {
+    showMessage: function (message) {
         var existing = $("#m" + message.id);
         if (existing.length > 0) return;
         var node = $(message.html);
