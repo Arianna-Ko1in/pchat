@@ -14,6 +14,7 @@ from tornado.options import define, options
 
 tornado.options.define("port", default=8080, help="run on the given port", type=int)
 
+messages = {}
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -48,25 +49,32 @@ class ChatSocketHandler(tornado.websocket.WebSocketHandler):
         ChatSocketHandler.waiters.remove(self)
   
     @classmethod
-    def send_updates(cls, chat):
-        logging.info("sending message to %d waiters", len(cls.waiters))
-        for waiter in cls.waiters:
-            try:
-                waiter.write_message(chat)
-            except:
-                logging.error("Error sending message", exc_info=True)
+    def send_updates(cls, chat, receiver):
+        if not receiver:
+            logging.info("sending message to %d waiters", len(cls.waiters))
+            for waiter in cls.waiters:
+                try:
+                    waiter.write_message(chat)
+                except:
+                    logging.error("Error sending message", exc_info=True)
+        else:
+            logging.info("Send reply to "+receiver)
+            messages[receiver].write_message(chat)
 
     def on_message(self, message):
+        receiver = None
         logging.info("got message %r", message)
         parsed = tornado.escape.json_decode(message)
+        uniq_id = str(uuid.uuid4())
+        messages['m'+uniq_id] = self
         chat = {
-            "id": str(uuid.uuid4()),
+            "id": uniq_id,
             "body": parsed["body"],
         }
         chat["html"] = tornado.escape.to_basestring(
             self.render_string("message.html", message=chat))
         
-        ChatSocketHandler.send_updates(chat)
+        ChatSocketHandler.send_updates(chat, parsed['receiver'])
 
 
 def main():
